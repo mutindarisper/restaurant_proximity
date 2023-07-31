@@ -13,6 +13,7 @@ const Map = () => {
 
 
     const [baseMaps, setbaseMaps] = useState({})
+    const [tab, setTab] = useState('')
     let map = useRef(null);
     let current_response = useRef(null)
     let current_point = useRef(null)
@@ -21,13 +22,26 @@ const Map = () => {
     let geolocation_lat = useRef(null)
     let geolocation_lon = useRef(null)
     let travel_time = useRef(null)
+    let distance_ = useRef(null)
+    const tabs = ['By travel time', 'By distance']
     const time_options = [
      { value:'2.5 min', label:'2.5 min'},
       {value:'5 min', label:'5 min'},
       {value:'10 min', label:'10 min'},
 
     ]
-    const timeOption = time_options.map( selection => (
+
+    const distance_options = [
+      { value:'1 km', label:'1 km'},
+       {value:'5 km', label:'5 km'},
+       {value:'10 km', label:'10 km'},
+ 
+     ]
+     const timeOption = time_options.map( selection => (
+      selection
+  ))
+
+    const distanceOption = distance_options.map( selection => (
       selection
   ))
 
@@ -226,6 +240,20 @@ const Map = () => {
         // rest_marker.addTo(map.current)
     }
 
+    const onDistanceChange = (e) => {
+      console.log(e.value, 'time')
+      const distance = e.value
+      if(distance === '1 km'){
+        distance_.current = 1000
+      }
+      if(distance === '5 km'){
+        distance_.current = 5000
+      }
+      if(distance === '10 km'){
+        distance_.current = 10000
+      }
+    }
+
     const onTimeChange = (e) => {
       console.log(e.value, 'time')
       const time = e.value
@@ -239,14 +267,28 @@ const Map = () => {
         travel_time.current = 900
       }
     }
+
+   
     const getNearbyRestaurants = async () => {
       if(geojson_isoline.current)map.current.removeLayer(geojson_isoline.current)
       const lat = geolocation_lat.current
       const lon = geolocation_lon.current
       var time = travel_time.current
-      const response = await axios.get(`https://api.geoapify.com/v1/isoline?lat=${lat}&lon=${lon}&type=time&mode=drive&range=${time}&traffic=approximated&apiKey=45acfe9c47f34a3cb3a5542a4093a147`)
+      var distance = distance_.current
+      if(tab === 'By travel time') {
+        const response = await axios.get(`https://api.geoapify.com/v1/isoline?lat=${lat}&lon=${lon}&type=time&mode=drive&range=${time}&traffic=approximated&apiKey=45acfe9c47f34a3cb3a5542a4093a147`)
       console.log(response.data)
       isoline_response.current = response.data
+
+      }
+
+      if(tab === 'By distance') {
+        const response = await axios.get(`https://api.geoapify.com/v1/isoline?lat=${lat}&lon=${lon}&type=distance&mode=drive&range=${distance}&traffic=approximated&apiKey=45acfe9c47f34a3cb3a5542a4093a147`)
+      console.log(response.data)
+      isoline_response.current = response.data
+
+      }
+      
       geojson_isoline.current = L.geoJSON(isoline_response.current, {
             style: {
               color: "#25a0b0",
@@ -306,21 +348,48 @@ useEffect(() => {
         </div>
 
         
-        <div className="params" style={{zIndex:104, position:'absolute', top:'1vh', left:'14vw', width:'15vw', height:'25vh', display:'flex', justifyContent:'center', alignItems:'center', paddingTop:'0', flexDirection:'column', gap:'1rem', backgroundColor:'#fff'}}>
+        <div className="params" style={{zIndex:104, position:'absolute', top:'8vh', left:'0.5vw', width:'15vw', height:'30vh', display:'flex', justifyContent:'center', alignItems:'center', paddingTop:'0', flexDirection:'column', gap:'1rem', backgroundColor:'#fff'}}>
+          <p>Accessibility</p>
+          <div className="selections"
+          style={{display:'flex',
+          flexDirection:'row',
+          gap:'1.5rem',
+          marginTop:'-2vh',
+          marginLeft:'-1vw'
 
-<Select 
-  defaultValue={'Max travel time'}
-  onChange={onTimeChange}
-  options={timeOption}
-  placeholder={'Max travel time'}
-  />
+          }}>
+         
+         {
+           tabs.map( (tab_) => 
+           <p 
+           style={{cursor:'pointer', 
+          //  marginLeft:'-1vw'
+          }}
+           onClick={  () => {setTab(tab_)}  }
+           >{tab_}</p> )
+         }
+          </div>
+          {
+            tab === 'By travel time' ?
+            <Select 
+        defaultValue={'Max travel time'}
+        onChange={onTimeChange}
+        options={timeOption}
+        placeholder={'Max travel time'}
+        />
+        :
+        <Select 
+        defaultValue={'Max distance'}
+        onChange={onDistanceChange}
+        options={distanceOption}
+        placeholder={'Max distance'}
+        />
 
-<Select 
-  defaultValue={'Max distance'}
-  onChange={onTimeChange}
-  options={timeOption}
-  placeholder={'Max distance'}
-  />
+          }
+
+      
+
+
 
 <button type="button" onClick={getNearbyRestaurants}>Find</button>
 </div>
