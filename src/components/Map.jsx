@@ -24,6 +24,8 @@ const Map = () => {
     let travel_time = useRef(null)
     let distance_ = useRef(null)
     const tabs = ['By travel time', 'By distance']
+    const [fontColor, setFontColor] = useState('black');
+
     const time_options = [
      { value:'2.5 min', label:'2.5 min'},
       {value:'5 min', label:'5 min'},
@@ -268,6 +270,18 @@ const Map = () => {
       }
     }
 
+    const changeFontColor = () => {
+      var newColor = 'black'
+      if(fontColor === 'black'){
+        newColor = '#00688f'
+        setFontColor(newColor);
+
+      }
+      // const newColor = fontColor === 'black' ? '#00688f' : 'black'; // Toggle between black and red
+      
+    };
+  
+
    
     const getNearbyRestaurants = async () => {
       if(geojson_isoline.current)map.current.removeLayer(geojson_isoline.current)
@@ -299,6 +313,13 @@ const Map = () => {
             // pane: 'pane1000'
           })
           geojson_isoline.current.addTo(map.current)
+
+          map.current.flyToBounds(geojson_isoline.current.getBounds(), {
+            padding: [50, 50],
+          });
+          // var radius = distance_.current
+
+          // L.circle([lat,lon], radius).addTo(map.current);
     }
    
  
@@ -331,7 +352,8 @@ useEffect(() => {
            gap:'0.3rem',
            justifyContent:'center',
            cursor:'pointer',
-           alignItems:'center'}}
+           alignItems:'center',
+          fontFamily:'sans-serif'}}
            onClick={findMe}>
             <p>Find Me</p>
           <img src={my_location} alt="" />
@@ -339,7 +361,8 @@ useEffect(() => {
           </div>
 
           
-            <button type="button" onClick={fetchRestaurants}>Restaurants</button>
+            <button type="button" style={{ outline:'none', border:'none', borderRadius:'10px', backgroundColor:'#fff', cursor:'pointer'}} onClick={fetchRestaurants}>Restaurants</button>
+            <button type="button" style={{ outline:'none', border:'none', borderRadius:'10px', backgroundColor:'#fff', cursor:'pointer'}} >Real Estate</button>
             {/* <button type="button" onClick={getNearbyRestaurants}>near me</button> */}
             
 
@@ -348,24 +371,27 @@ useEffect(() => {
         </div>
 
         
-        <div className="params" style={{zIndex:104, position:'absolute', top:'8vh', left:'0.5vw', width:'15vw', height:'30vh', display:'flex', justifyContent:'center', alignItems:'center', paddingTop:'0', flexDirection:'column', gap:'1rem', backgroundColor:'#fff'}}>
-          <p>Accessibility</p>
+        <div className="params" style={{fontFamily:'sans-serif',  zIndex:104, position:'absolute', top:'8vh', left:'0.5vw', width:'15vw', height:'30vh', display:'flex', justifyContent:'center', alignItems:'center', paddingTop:'0', flexDirection:'column', gap:'1rem', backgroundColor:'#fff'}}>
+          <p style={{fontWeight:'600'}}>Accessibility</p>
           <div className="selections"
           style={{display:'flex',
           flexDirection:'row',
           gap:'1.5rem',
           marginTop:'-2vh',
-          marginLeft:'-1vw'
+          marginLeft:'-1vw',
+          fontWeight:'600'
 
           }}>
          
          {
            tabs.map( (tab_) => 
            <p 
-           style={{cursor:'pointer', 
+           style={{cursor:'pointer',
+           color: fontColor,
+           borderBottomColor: fontColor 
           //  marginLeft:'-1vw'
           }}
-           onClick={  () => {setTab(tab_)}  }
+           onClick={  () => {setTab(tab_);changeFontColor()}  }
            >{tab_}</p> )
          }
           </div>
@@ -391,7 +417,7 @@ useEffect(() => {
 
 
 
-<button type="button" onClick={getNearbyRestaurants}>Find</button>
+<button type="button" style={{ outline:'none', border:'none', borderRadius:'10px', backgroundColor:'#087c70', width:'5vw', height:'3vh', color:'#fff'}} onClick={getNearbyRestaurants}>Find</button>
 </div>
         <p id="status"></p>
 <a id="map-link" target="_blank"></a>
