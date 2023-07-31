@@ -4,14 +4,32 @@ import { useState, useEffect, useRef } from 'react'
 import "leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
+import Select from 'react-select'
 import  axios from 'axios'
+import my_location from '../assets/my_location.svg'
 
 const Map = () => {
+
+
 
     const [baseMaps, setbaseMaps] = useState({})
     let map = useRef(null);
     let current_response = useRef(null)
     let current_point = useRef(null)
+    let isoline_response = useRef(null)
+    let geojson_isoline = useRef(null)
+    let geolocation_lat = useRef(null)
+    let geolocation_lon = useRef(null)
+    let travel_time = useRef(null)
+    const time_options = [
+     { value:'2.5 min', label:'2.5 min'},
+      {value:'5 min', label:'5 min'},
+      {value:'10 min', label:'10 min'},
+
+    ]
+    const timeOption = time_options.map( selection => (
+      selection
+  ))
 
 
     
@@ -82,10 +100,85 @@ const Map = () => {
           L.control.layers(basemaps_object).addTo(map.current);
     }
 
+    //geolocation function
+    const findMe = () => {
+      
+      map.current.locate({setView: true, maxZoom: 30});
+
+      const onLocationFound = (e) => {
+        var radius = e.accuracy;
+        var rest_icon = new L.icon({
+                      // iconUrl: "src/assets/my_location.svg", 
+                      iconUrl:"https://api.geoapify.com/v1/icon/?type=material&color=%2325a0b0&icon=person&apiKey=ab9f95db3fa946ef94c87701358bc22d",
+                      iconSize:     [30, 40], // width and height of the image in pixels
+                      shadowSize:   [35, 20], // width, height of optional shadow image
+                      iconAnchor:   [15, 39], // point of the icon which will correspond to marker's location
+                      shadowAnchor: [12, 6],  // anchor point of the shadow. should be offset
+                      popupAnchor:  [0, -25] // point from which the popup should open relative to the iconAnchor
+          
+                });
+                console.log(e.latlng, 'geoposition latlng')
+                geolocation_lat.current = e.latlng.lat
+                geolocation_lon.current = e.latlng.lng
+    
+        L.marker(e.latlng, {icon: rest_icon}).addTo(map.current)
+            .bindPopup("You are within " + radius + " meters from this point")
+            // .openPopup();
+    
+        // L.circle(e.latlng, radius).addTo(map.current);
+    }
+    
+    map.current.on('locationfound', onLocationFound);
+      
+
+  //     const status = document.querySelector("#status");
+  // const mapLink = document.querySelector("#map-link");
+
+  // const success = (position) => {
+  //   const latitude = position.coords.latitude;
+  //   const longitude = position.coords.longitude;
+  //   console.log(position, 'position')
+
+    
+
+  //      var rest_icon = new L.icon({
+  //             iconUrl: "src/assets/my_location.svg", 
+  //             // iconUrl:"https://api.geoapify.com/v1/icon/?type=material&color=%23f15080&icon=restaurant&apiKey=ab9f95db3fa946ef94c87701358bc22d",
+  //             iconSize:     [20, 25], // width and height of the image in pixels
+  //             shadowSize:   [35, 20], // width, height of optional shadow image
+  //             iconAnchor:   [10, 24], // point of the icon which will correspond to marker's location
+  //             shadowAnchor: [12, 6],  // anchor point of the shadow. should be offset
+  //             popupAnchor:  [0, -25] // point from which the popup should open relative to the iconAnchor
+  
+  //       });
+  
+  // var marker = L.marker([latitude, longitude], {icon: rest_icon,
+  //   setView: true,
+  //    maxZoom: 16});
+  // marker.addTo(map.current)
+  // // map.flyTo(marker.getBounds())
+
+  //   // status.textContent = "";
+  //   // mapLink.href = `https://www.openstreetmap.org/#map=18/${latitude}/${longitude}`;
+  //   // mapLink.textContent = `Latitude: ${latitude} °, Longitude: ${longitude} °`;
+  // }
+
+  // const error = () => {
+  //   status.textContent = "Unable to retrieve your location";
+  // }
+
+  // if (!navigator.geolocation) {
+  //   status.textContent = "Geolocation is not supported by your browser";
+  // } else {
+  //   status.textContent = "Locating…";
+  //   navigator.geolocation.getCurrentPosition(success, error);
+  // }
+    }
+
     const fetchRestaurants = async () => {
         const API_KEY = '54b25989bdee4b6e866aa6dd9b661791'
         const restaurant_response = await axios.get(`https://api.geoapify.com/v2/places?categories=catering.restaurant&filter=rect:36.7276,-1.3656,36.9415,-1.2304&limit=100&apiKey=54b25989bdee4b6e866aa6dd9b661791`)
-        console.log(restaurant_response.data, 'response')
+        // console.log(restaurant_response.data, 'response')
         current_response.current = restaurant_response.data
 
         var latlng = restaurant_response.data.features[0].geometry.coordinates
@@ -98,9 +191,9 @@ const Map = () => {
             var rest_icon = new L.icon({
                 // iconUrl: "src/assets/restaurant.svg", 
                 iconUrl:"https://api.geoapify.com/v1/icon/?type=material&color=%23f15080&icon=restaurant&apiKey=ab9f95db3fa946ef94c87701358bc22d",
-                iconSize:     [20, 31], // width and height of the image in pixels
+                iconSize:     [20, 25], // width and height of the image in pixels
                 shadowSize:   [35, 20], // width, height of optional shadow image
-                iconAnchor:   [10, 30], // point of the icon which will correspond to marker's location
+                iconAnchor:   [10, 24], // point of the icon which will correspond to marker's location
                 shadowAnchor: [12, 6],  // anchor point of the shadow. should be offset
                 popupAnchor:  [0, -25] // point from which the popup should open relative to the iconAnchor
     
@@ -133,6 +226,40 @@ const Map = () => {
         // rest_marker.addTo(map.current)
     }
 
+    const onTimeChange = (e) => {
+      console.log(e.value, 'time')
+      const time = e.value
+      if(time === '2.5 min'){
+        travel_time.current = 150
+      }
+      if(time === '5 min'){
+        travel_time.current = 300
+      }
+      if(time === '10 min'){
+        travel_time.current = 900
+      }
+    }
+    const getNearbyRestaurants = async () => {
+      if(geojson_isoline.current)map.current.removeLayer(geojson_isoline.current)
+      const lat = geolocation_lat.current
+      const lon = geolocation_lon.current
+      var time = travel_time.current
+      const response = await axios.get(`https://api.geoapify.com/v1/isoline?lat=${lat}&lon=${lon}&type=time&mode=drive&range=${time}&traffic=approximated&apiKey=45acfe9c47f34a3cb3a5542a4093a147`)
+      console.log(response.data)
+      isoline_response.current = response.data
+      geojson_isoline.current = L.geoJSON(isoline_response.current, {
+            style: {
+              color: "#25a0b0",
+              opacity: 1,
+              fillOpacity:0.1,
+              weight: 4
+            }
+            // pane: 'pane1000'
+          })
+          geojson_isoline.current.addTo(map.current)
+    }
+   
+ 
 
 
 
@@ -150,9 +277,55 @@ useEffect(() => {
 
         <div id="map" style={{ height:'100vh', width:'100vw',zIndex:99}}></div>
 
-        <div className="buttons" style={{zIndex:104, position:'absolute', top:'1vh', left:'0.5vw'}}>
+        <div className="buttons" style={{zIndex:104, position:'absolute', top:'1vh', left:'0.5vw', display:'flex', gap:'1rem'}}>
+          <div className="find_me" 
+          style={{zIndex:104, 
+          backgroundColor:'#fff',
+           width:'100px', 
+           height:'50px', 
+           borderRadius:'10px', 
+           display:'flex', 
+           flexDirection:'row',
+           gap:'0.3rem',
+           justifyContent:'center',
+           cursor:'pointer',
+           alignItems:'center'}}
+           onClick={findMe}>
+            <p>Find Me</p>
+          <img src={my_location} alt="" />
+
+          </div>
+
+          
             <button type="button" onClick={fetchRestaurants}>Restaurants</button>
+            {/* <button type="button" onClick={getNearbyRestaurants}>near me</button> */}
+            
+
+            
+            
         </div>
+
+        
+        <div className="params" style={{zIndex:104, position:'absolute', top:'1vh', left:'14vw', width:'15vw', height:'25vh', display:'flex', justifyContent:'center', alignItems:'center', paddingTop:'0', flexDirection:'column', gap:'1rem', backgroundColor:'#fff'}}>
+
+<Select 
+  defaultValue={'Max travel time'}
+  onChange={onTimeChange}
+  options={timeOption}
+  placeholder={'Max travel time'}
+  />
+
+<Select 
+  defaultValue={'Max distance'}
+  onChange={onTimeChange}
+  options={timeOption}
+  placeholder={'Max distance'}
+  />
+
+<button type="button" onClick={getNearbyRestaurants}>Find</button>
+</div>
+        <p id="status"></p>
+<a id="map-link" target="_blank"></a>
 
     </div>
   )
