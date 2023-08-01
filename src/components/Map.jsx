@@ -7,6 +7,11 @@ import "leaflet/dist/leaflet.css"
 import Select from 'react-select'
 import  axios from 'axios'
 import my_location from '../assets/my_location.svg'
+import car from '../assets/car.png'
+import bus from '../assets/bus.png'
+import motor from '../assets/motor.png'
+import walk from '../assets/walk.png'
+import '../index.css'
 
 const Map = () => {
 
@@ -25,6 +30,8 @@ const Map = () => {
     let distance_ = useRef(null)
     const tabs = ['By travel time', 'By distance']
     const [fontColor, setFontColor] = useState('black');
+    const [mode, setMode] = useState('')
+    const [modecolor, setmodecolor] = useState()
 
     const time_options = [
      { value:'2.5 min', label:'2.5 min'},
@@ -50,7 +57,14 @@ const Map = () => {
 
     
     const setLeafletMap = () => {
+
+
+   const osm =   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+	maxZoom: 19,
+	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+});
         const mapboxLight =  L.tileLayer(
+          
             "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}",
             {
               attribution:
@@ -87,7 +101,7 @@ const Map = () => {
 
 
          var basemaps_object = {
-            MapBoxLight: mapboxLight,
+            OSM: osm,
             MapBox: mapbox,
             MapBoxSatellite: mapboxSatellite,
           };
@@ -137,18 +151,30 @@ const Map = () => {
                 geolocation_lat.current = e.latlng.lat
                 geolocation_lon.current = e.latlng.lng
     
-        L.marker(e.latlng, {icon: rest_icon}).addTo(map.current)
+      var myLocation =  L.marker(e.latlng, {draggable: true, icon: rest_icon}).addTo(map.current)
             .bindPopup("You are within " + radius + " meters from this point")
+
+            var newPos = [myLocation.getLatLng().lat, myLocation.getLatLng().lng];
+      
+            const onDragEnd = () => {
+              newPos = [myLocation.getLatLng().lat, myLocation.getLatLng().lng]; //the dragged position becomes the new position
+              console.log(newPos, 'new position');
+
+              geolocation_lat.current = myLocation.getLatLng().lat
+              geolocation_lon.current = myLocation.getLatLng().lng
+            
+              }
+              myLocation.on('dragend', onDragEnd );
+
+            
             // .openPopup();
     
         // L.circle(e.latlng, radius).addTo(map.current);
     }
     
     map.current.on('locationfound', onLocationFound);
-      
-
-  //     const status = document.querySelector("#status");
-  // const mapLink = document.querySelector("#map-link");
+    
+    
 
   // const success = (position) => {
   //   const latitude = position.coords.latitude;
@@ -174,27 +200,25 @@ const Map = () => {
   // marker.addTo(map.current)
   // // map.flyTo(marker.getBounds())
 
-  //   // status.textContent = "";
-  //   // mapLink.href = `https://www.openstreetmap.org/#map=18/${latitude}/${longitude}`;
-  //   // mapLink.textContent = `Latitude: ${latitude} °, Longitude: ${longitude} °`;
+    
   // }
 
   // const error = () => {
-  //   status.textContent = "Unable to retrieve your location";
+  //   alert("<Sorry, your browser does not support Geolocation");
   // }
 
   // if (!navigator.geolocation) {
-  //   status.textContent = "Geolocation is not supported by your browser";
+  //   alert("Sorry, your browser does not support Geolocation");
   // } else {
-  //   status.textContent = "Locating…";
-  //   navigator.geolocation.getCurrentPosition(success, error);
+  //   alert("Locating...");
+  //   navigator.geolocation.getCurrentPosition(success, error); //also not accurate
   // }
     }
 
     const fetchRestaurants = async () => {
         const API_KEY = '54b25989bdee4b6e866aa6dd9b661791'
         const restaurant_response = await axios.get(`https://api.geoapify.com/v2/places?categories=catering.restaurant&filter=rect:36.7276,-1.3656,36.9415,-1.2304&limit=100&apiKey=54b25989bdee4b6e866aa6dd9b661791`)
-        // console.log(restaurant_response.data, 'response')
+        console.log(restaurant_response.data, 'response')
         current_response.current = restaurant_response.data
 
         var latlng = restaurant_response.data.features[0].geometry.coordinates
@@ -204,6 +228,7 @@ const Map = () => {
     var markers = L.geoJSON(current_response.current, {
 
         pointToLayer: function (feature, latlng){
+          // console.log(feature, 'featre')
             var rest_icon = new L.icon({
                 // iconUrl: "src/assets/restaurant.svg", 
                 iconUrl:"https://api.geoapify.com/v1/icon/?type=material&color=%23f15080&icon=restaurant&apiKey=ab9f95db3fa946ef94c87701358bc22d",
@@ -214,7 +239,7 @@ const Map = () => {
                 popupAnchor:  [0, -25] // point from which the popup should open relative to the iconAnchor
     
           });
-          var marker = L.marker(latlng, {icon: rest_icon});
+          var marker = L.marker(latlng, {icon: rest_icon}).bindTooltip(`<strong> Name:  </strong> ${feature.properties.name} `).openTooltip();
           return marker;
 
         }
@@ -224,22 +249,6 @@ const Map = () => {
 
     
  
-        // var coords_lat = restaurant_response.data.features.map((item) =>{
-        //     return item.geometry.coordinates[0]
-        //     // item.geometry.coordinates[1]
-
-        // } )
-        // console.log(coords_lat, 'cords object')
-
-        // var coords_lon = restaurant_response.data.features.map((item) =>{
-        //     return item.geometry.coordinates[0]
-        //     // item.geometry.coordinates[1]
-
-        // } )
-        // console.log(coords_lon, 'cords lon')
-
-        // var rest_marker =  L.marker([coords_lat, coords_lon], {icon: rest_icon});
-        // rest_marker.addTo(map.current)
     }
 
     const onDistanceChange = (e) => {
@@ -280,6 +289,10 @@ const Map = () => {
       // const newColor = fontColor === 'black' ? '#00688f' : 'black'; // Toggle between black and red
       
     };
+
+    // if(mode){
+    //   setmodecolor('blue') 
+    // }
   
 
    
@@ -289,15 +302,16 @@ const Map = () => {
       const lon = geolocation_lon.current
       var time = travel_time.current
       var distance = distance_.current
+      console.log(mode, 'mode')
       if(tab === 'By travel time') {
-        const response = await axios.get(`https://api.geoapify.com/v1/isoline?lat=${lat}&lon=${lon}&type=time&mode=drive&range=${time}&traffic=approximated&apiKey=45acfe9c47f34a3cb3a5542a4093a147`)
+        const response = await axios.get(`https://api.geoapify.com/v1/isoline?lat=${lat}&lon=${lon}&type=time&mode=${mode}&range=${time}&traffic=approximated&apiKey=45acfe9c47f34a3cb3a5542a4093a147`)
       console.log(response.data)
       isoline_response.current = response.data
 
       }
 
       if(tab === 'By distance') {
-        const response = await axios.get(`https://api.geoapify.com/v1/isoline?lat=${lat}&lon=${lon}&type=distance&mode=drive&range=${distance}&traffic=approximated&apiKey=45acfe9c47f34a3cb3a5542a4093a147`)
+        const response = await axios.get(`https://api.geoapify.com/v1/isoline?lat=${lat}&lon=${lon}&type=distance&mode=${mode}&range=${distance}&traffic=approximated&apiKey=45acfe9c47f34a3cb3a5542a4093a147`)
       console.log(response.data)
       isoline_response.current = response.data
 
@@ -373,6 +387,24 @@ useEffect(() => {
         
         <div className="params" style={{fontFamily:'sans-serif',  zIndex:104, position:'absolute', top:'8vh', left:'0.5vw', width:'15vw', height:'30vh', display:'flex', justifyContent:'center', alignItems:'center', paddingTop:'0', flexDirection:'column', gap:'1rem', backgroundColor:'#fff'}}>
           <p style={{fontWeight:'600'}}>Accessibility</p>
+
+          <div className="means" style={{ display:'flex',flexDirection:'row', gap:'1rem',  backgroundColor:'#f7f7f7', width:'200px', justifyContent:'space-evenly',
+           paddingLeft:'20px',  paddingRight:'20px', paddingBottom:'10px',  paddingTop:'10px', borderRadius:'10px'}}>
+            {/* <div style={{borderRightColor:'red'}}> */}
+            <img src={car} alt="" style={{height:'25px', width:'25px', padding:'2px', backgroundColor: mode === 'drive' ? modecolor : '' }}  onClick={ () => { setMode('drive');setmodecolor('#d9dcd6') }}/>
+            <div style={{borderRight:' #9a9d98 2px solid',}}></div>
+            {/* </div> */}
+            
+            
+            <img src={bus} alt=""  style={{height:'19px', width:'25px', marginTop:'2px', padding:'2px', backgroundColor: mode === 'bus' ? modecolor : ''  }} onClick={ () => { setMode('bus');setmodecolor('#d9dcd6') }}/>
+            <div style={{borderRight:' #9a9d98 2px solid',}}></div>
+            <img src={motor} alt=""  style={{height:'25px', width:'25px',padding:'2px',  backgroundColor: mode === 'motorcycle' ? modecolor : ''}} onClick={ () => { setMode('motorcycle');setmodecolor('#d9dcd6') }}/>
+            <div style={{borderRight:' #9a9d98 2px solid',}}></div>
+            <img src={walk} alt="" 
+            
+             style={{height:'25px', width:'25px', padding:'2px', backgroundColor: mode === 'walk' ? modecolor : ''  }} onClick={ () => { setMode('walk');setmodecolor('#d9dcd6') }}/>
+
+          </div>
           <div className="selections"
           style={{display:'flex',
           flexDirection:'row',
@@ -419,8 +451,7 @@ useEffect(() => {
 
 <button type="button" style={{ outline:'none', border:'none', borderRadius:'10px', backgroundColor:'#087c70', width:'5vw', height:'3vh', color:'#fff'}} onClick={getNearbyRestaurants}>Find</button>
 </div>
-        <p id="status"></p>
-<a id="map-link" target="_blank"></a>
+        
 
     </div>
   )
