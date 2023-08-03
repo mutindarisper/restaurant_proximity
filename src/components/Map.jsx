@@ -2,8 +2,10 @@ import React from 'react'
 import { useState, useEffect, useRef } from 'react'
 
 import "leaflet"
-import L from "leaflet"
+import L, { polyline } from "leaflet"
+import * as turf from '@turf/turf'
 import "leaflet/dist/leaflet.css"
+// import buffer from "@turf/buffer"
 import Select from 'react-select'
 import  axios from 'axios'
 import my_location from '../assets/my_location.svg'
@@ -21,6 +23,8 @@ const Map = () => {
     const [tab, setTab] = useState('')
     let map = useRef(null);
     let current_response = useRef(null)
+    let road_response = useRef(null)
+    let current_county = useRef(null)
     let current_point = useRef(null)
     let isoline_response = useRef(null)
     let geojson_isoline = useRef(null)
@@ -28,10 +32,14 @@ const Map = () => {
     let geolocation_lon = useRef(null)
     let travel_time = useRef(null)
     let distance_ = useRef(null)
+    let roads = useRef(null)
+    let polygon_buffer = useRef(null)
     const tabs = ['By travel time', 'By distance']
     const [fontColor, setFontColor] = useState('black');
     const [mode, setMode] = useState('')
     const [modecolor, setmodecolor] = useState()
+    const [query_method, setQuery_method] = useState(null)
+    const [buffer_value, setbuffer_value] = useState('')
 
     const time_options = [
      { value:'2.5 min', label:'2.5 min'},
@@ -46,6 +54,20 @@ const Map = () => {
        {value:'10 km', label:'10 km'},
  
      ]
+     
+    const data_options = [
+      { value:'roads', label:'roads'},
+       {value:'points', label:'points'},
+       {value:'polygon', label:'polygon'},
+ 
+     ]
+
+     const query_options = [
+      { value:'Buffer', label:'Buffer'},
+       {value:'Intersect', label:'Intersect'},
+       {value:'Completely Within', label:'Completely Within'},
+ 
+     ]
      const timeOption = time_options.map( selection => (
       selection
   ))
@@ -53,6 +75,14 @@ const Map = () => {
     const distanceOption = distance_options.map( selection => (
       selection
   ))
+  const dataOption = data_options.map( selection => (
+    selection
+))
+
+const queryOption = query_options.map( selection => (
+  selection
+))
+
 
 
     
@@ -121,13 +151,32 @@ const Map = () => {
             // drawControl: true,
             // minZoom: 6.5,
             // maxZoom: 20,
-            zoom: 12,
+            zoom: 11.5,
             // measureControl: true,
             // defaultExtentControl: true,
             layers:[mapbox]
           }); // add the basemaps to the controls
       
           L.control.layers(basemaps_object).addTo(map.current);
+    }
+
+    const fetchBoundary = async () => {
+      const response = await axios.get('https://api.geoapify.com/v1/boundaries/part-of?id=51b39a4e810a6e4240592d785a424cc5f4bff00101f90148278c00000000009203074e6169726f6269&geometry=geometry_1000&apiKey=45acfe9c47f34a3cb3a5542a4093a147')
+      current_response.current = response.data
+
+         current_county.current = L.geoJSON(current_response.current, {
+            style: {
+              color: "black",
+              opacity: 1,
+              fillOpacity:0,
+              weight: 3
+            }
+            // pane: 'pane1000'
+          })
+          // map.current.flyToBounds(current_county.current.getBounds(), {
+          //   padding: [50, 50],
+          // });
+          current_county.current.addTo(map.current)
     }
 
     //geolocation function
@@ -152,7 +201,10 @@ const Map = () => {
                 geolocation_lon.current = e.latlng.lng
     
       var myLocation =  L.marker(e.latlng, {draggable: true, icon: rest_icon}).addTo(map.current)
+      
+      
             .bindPopup("You are within " + radius + " meters from this point")
+           
 
             var newPos = [myLocation.getLatLng().lat, myLocation.getLatLng().lng];
       
@@ -290,10 +342,52 @@ const Map = () => {
       
     };
 
-    // if(mode){
-    //   setmodecolor('blue') 
-    // }
-  
+   //for spatial queries
+   //roads data
+   const fetchRoads = async (e) => {
+    console.log(e.value, 'query data')
+    const response = await axios.get('http://localhost:8005/geoserver/Nairobi_data/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=Nairobi_data%3ANairobi_roads&maxFeatures=50&outputFormat=application%2Fjson')
+    console.log(response.data, 'roads data')
+    road_response.current = response.data
+    roads.current = L.geoJSON(road_response.current, {
+      style: {
+        color: "#ee7245",
+        opacity: 1,
+        fillOpacity:0.1,
+        weight: 3
+      }
+      // pane: 'pane1000'
+    })
+    roads.current.addTo(map.current)
+   }
+   const queryChange = (e) => {
+      
+      console.log(e.value)
+      setQuery_method(e.value)
+
+   }
+   const onInputChange = (e) => {
+    console.log(e.target.value, 'range value')
+    setbuffer_value(e.target.value)
+   }
+
+   const runQuery = () => {
+    var road = road_response.current
+    if(polygon_buffer.current)map.current.removeLayer(polygon_buffer.current)
+    var polygon = turf.buffer(road, buffer_value, {
+      units: 'meters'
+    });
+
+   polygon_buffer.current =  L.geoJSON(polygon, {
+      style: function(feature) {
+        return {
+          color: '#80cdc1'
+        };
+      }
+    })
+    polygon_buffer.current.addTo(map.current);
+
+   }
 
    
     const getNearbyRestaurants = async () => {
@@ -343,11 +437,20 @@ const Map = () => {
 
 useEffect(() => {
         setLeafletMap()
+        fetchBoundary()
         
         
     
       
     }, [])
+  //   useEffect(() => {
+  //     // setLeafletMap()
+  //     // fetchBoundary()
+      
+      
+  
+    
+  // }, [query_method])
 
   return (
     <div>
@@ -385,7 +488,7 @@ useEffect(() => {
         </div>
 
         
-        <div className="params" style={{fontFamily:'sans-serif',  zIndex:104, position:'absolute', top:'8vh', left:'0.5vw', width:'15vw', height:'30vh', display:'flex', justifyContent:'center', alignItems:'center', paddingTop:'0', flexDirection:'column', gap:'1rem', backgroundColor:'#fff'}}>
+        <div className="params" style={{fontFamily:'sans-serif',  zIndex:104, position:'absolute', top:'8vh', left:'0.5vw', width:'17vw', height:'30vh', display:'flex', justifyContent:'center', alignItems:'center', paddingTop:'0', flexDirection:'column', gap:'1rem', backgroundColor:'#fff'}}>
           <p style={{fontWeight:'600'}}>Accessibility</p>
 
           <div className="means" style={{ display:'flex',flexDirection:'row', gap:'1rem',  backgroundColor:'#f7f7f7', width:'200px', justifyContent:'space-evenly',
@@ -449,9 +552,106 @@ useEffect(() => {
 
 
 
-<button type="button" style={{ outline:'none', border:'none', borderRadius:'10px', backgroundColor:'#087c70', width:'5vw', height:'3vh', color:'#fff'}} onClick={getNearbyRestaurants}>Find</button>
+<button type="button" style={{ outline:'none', border:'none', borderRadius:'10px', backgroundColor:'#087c70',
+ width:'5vw', height:'3vh', color:'#fff'}} onClick={getNearbyRestaurants}>Find</button>
 </div>
         
+        <div className="spatial" 
+        style={{ backgroundColor:'#fff', 
+        height:'40vh', 
+        width:'17vw', 
+        zIndex:104, 
+        position:'absolute',
+         top:'40vh', 
+         left:'0.5vw',
+          display:'flex',
+          // justifyContent:'center',
+          // alignItems:'center'
+          }}>
+          <div className="spatial_queries" 
+          style={{fontFamily:'sans-serif',
+          height:'40vh', 
+        width:'17vw',
+          fontWeight:'bold',
+          display:'flex',
+          justifyContent:'center',
+          marginTop:'3vh',
+          // alignItems:'center'
+
+         }}> Spatial Queries</div>
+         
+
+              <div className="query_data"
+              style={{ 
+                width:'150px', 
+              // height:'30px',
+               outline:'none',
+               border:'none', 
+               borderRadius:'10px',
+                // backgroundColor:'#eee',
+                marginTop:'7vh',
+                marginLeft:'-15vw',
+                 cursor:'pointer'}}>
+
+<p style={{fontFamily:'sans-serif',
+          // height:'40vh', 
+        // width:'17vw',
+          fontWeight:'bold',
+          // display:'flex',
+          // justifyContent:'center',
+          // marginTop:'3vh',
+          // alignItems:'center'
+
+         }} >Select data</p>
+
+<Select 
+
+defaultValue={'Roads'}
+onChange={fetchRoads}
+options={dataOption}
+placeholder={'Roads'}
+/>
+
+<p
+style={{fontFamily:'sans-serif',
+// height:'40vh', 
+// width:'17vw',
+fontWeight:'bold',
+// display:'flex',
+// justifyContent:'center',
+// marginTop:'3vh',
+// alignItems:'center'
+
+}}>Select query</p>
+
+<Select 
+
+defaultValue={'Intersect'}
+onChange={queryChange}
+options={queryOption}
+placeholder={'Intersect'}
+/>
+
+{
+  query_method === 'Buffer' ?
+
+  <div className="buffer">
+    <input type="range" name="" id="" min={0} max={10000} onChange={onInputChange}/> <p> {buffer_value} meters</p>
+    <button type="button" style={{ outline:'none', border:'none', borderRadius:'10px', backgroundColor:'#087c70',
+ width:'5vw', height:'3vh', color:'#fff'}}
+ onClick={runQuery} >Run Query</button>
+    
+  </div>
+  : ''
+}
+
+
+
+              </div>
+
+
+
+        </div>
 
     </div>
   )
